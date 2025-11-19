@@ -1,0 +1,28 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+  package="com.idmeta_sdk_flutter">
+
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+
+
+    <application>
+        <!-- 
+         This path resolves to:
+         com.idmeta_sdk_flutter.camera.controller.CameraControllerActivity
+         This is correct for your new structure.
+        -->
+        <activity
+            android:name=".camera.controller.CameraControllerActivity"
+            android:hardwareAccelerated="true"
+            android:theme="@style/Theme.Iad.NoActionBar" />
+
+        <activity
+            android:name=".camera.controller.NoUiCameraControllerActivity"
+            android:hardwareAccelerated="true"
+            android:theme="@style/Theme.Iad.NoActionBar" />
+    </application>
+</manifest>

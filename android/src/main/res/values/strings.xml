@@ -1,0 +1,22 @@
+<resources>
+    <string name="app_name">Iad</string>
+    <string name="response_title">Response from server</string>
+    <string name="error_title">Error</string>
+    <string name="is_capture_genuine">Is capture genuine: %s</string>
+    <string name="is_face_genuine">Is face genuine: %s</string>
+    <string name="capture_liveness_probability">Capture liveness: %d%%</string>
+    <string name="face_liveness_probability">Face liveness: %d%%</string>
+    <string name="rational_request_permissions">Hello, this is an example of using IAD module in a real Android application.\n\nAfter you press the button below, you will see a window asking you to access the camera. Photography is a prerequisite for IAD module correct operation.</string>
+    <string name="request_permission_for_camera">Request permission to use camera</string>
+    <string name="start">Start</string>
+    <string name="please_show_your_face">Please show your face</string>
+    <string name="too_many_faces">Too many faces</string>
+    <string name="freeze">Freeze!</string>
+    <string name="idrd_face_detector"><![CDATA[ID R&D face detector]]></string>
+    <string name="message_no_ui">You can use IAD library without PreviewView.</string>
+    <string name="use_preview">Use preview</string>
+    <string name="open_camera_activity">Open camera activity</string>
+    <string name="use_small_payload">Use a small payload</string>
+    <string name="license">License</string>
+    <string name="during_license_evaluation_an_error_occurs">During license evaluation, an error occurs: %1$s</string>
+</resources>

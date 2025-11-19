@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- LaunchTheme and NormalTheme are not used by your plugin's native activities, they can be ignored -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+    </style>
+    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">?android:colorBackground</item>
+    </style>
+
+    <!--
+      THIS IS THE FIX.
+      Change the parent from "Theme.AppCompat..." to "Theme.MaterialComponents..."
+    -->
+    <style name="Theme.Iad.NoActionBar" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <!-- The parent theme now provides all the necessary attributes like colorSurface -->
+
+        <!-- Optional: You can customize other properties like the status bar color here -->
+        <!-- Note: Material themes use colorPrimaryVariant for status bar color -->
+        <!-- <item name="android:statusBarColor">@color/black</item> -->
+    </style>
+
+</resources>

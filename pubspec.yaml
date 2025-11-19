@@ -1,0 +1,60 @@
+name: idmeta_sdk_flutter
+description: IDMeta Flutter SDK for identity verification. This is a beta version for initial testing and integration.
+version: 1.0.0
+homepage: https://github.com/C4SI-0
+repository: https://github.com/C4SI-0/idmeta_sdk_flutter.git
+
+environment:
+  sdk: '>=3.2.0 <4.0.0' 
+  flutter: ">=3.16.0"
+
+dependencies:
+  # Core Flutter dependency
+  flutter:
+    sdk: flutter
+
+  # All packages below use the caret (^) syntax for flexible versioning.
+  # This allows them to receive non-breaking updates automatically.
+  plugin_platform_interface: ^2.1.8
+  cupertino_icons: ^1.0.2
+  http: ^1.1.0
+  intl: ^0.19.0
+  provider: ^6.1.2
+  file_picker: ^8.0.0+1
+  image_picker: ^1.0.8
+  camera: ^0.10.5+9
+  dropdown_search: ^5.0.6
+  image: ^4.1.7
+  google_mlkit_face_detection: ^0.10.0
+  google_mlkit_commons: ^0.7.1
+  shimmer: ^3.0.0
+  path_provider: ^2.1.5
+  permission_handler: ^12.0.0+1
+  blinkid_flutter: ^6.12.0
+  shared_preferences: ^2.5.3
+  qr_code_tools: ^0.2.0
+  mobile_scanner: ^6.0.10
+  package_info_plus: ^8.3.0
+  record: ^6.1.0
+  audioplayers: ^6.5.0
+  flutter_inappwebview: ^6.1.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  # Using the latest version of lints is always a good idea.
+  flutter_lints: ^4.0.0
+
+flutter:
+  assets:
+      - assets/logo.png
+      - assets/checked.png
+  # This section defines your project as a plugin. It is correct.
+  plugin:
+    platforms:
+      android:
+        package: com.idmeta_sdk_flutter
+        pluginClass: IdmetaSdkFlutterPlugin
+      ios:
+        pluginClass: IdmetaSdkFlutterPlugin
+
