@@ -23,7 +23,7 @@ IDMeta Flutter SDK for identity verification. This is a beta version for initial
   #
   s.source_files = 'Classes/**/*'
   s.dependency 'Flutter'
-  s.platform = :ios, '12.0' # This is a reasonable minimum, but check your native dependencies.
+  s.platform = :ios, '16.0' # This is a reasonable minimum, but check your native dependencies.
 
   # Flutter.framework does not contain a i386 slice.
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386' }
