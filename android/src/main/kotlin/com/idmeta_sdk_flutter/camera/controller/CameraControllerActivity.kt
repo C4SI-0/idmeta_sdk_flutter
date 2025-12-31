@@ -21,9 +21,9 @@ class CameraControllerActivity : AppCompatActivity(R.layout.camera_controller_ac
 
     private val viewModel: CameraControllerViewModel by viewModels {
         // Get the dynamic data from the Intent
-        val authToken = intent.getStringExtra("AUTH_TOKEN") ?: ""
-        val templateId = intent.getStringExtra("TEMPLATE_ID") ?: ""
-        val verificationId = intent.getStringExtra("VERIFICATION_ID") ?: ""
+        val authToken = intent.getStringExtra("authToken") ?: ""
+        val templateId = intent.getStringExtra("templateId") ?: ""
+        val verificationId = intent.getStringExtra("verificationId") ?: ""
 
         if (authToken.isEmpty() || templateId.isEmpty() || verificationId.isEmpty()) {
             Log.e("CameraController", "FATAL: Auth token or IDs are missing from the intent.")

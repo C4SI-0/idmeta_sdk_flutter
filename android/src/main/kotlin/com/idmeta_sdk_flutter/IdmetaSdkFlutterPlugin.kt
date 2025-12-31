@@ -118,9 +118,9 @@ class IdmetaSdkFlutterPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
 
     private fun startLivenessCheck(authToken: String, templateId: String, verificationId: String) {
         val intent = Intent(activity, CameraControllerActivity::class.java).apply {
-            putExtra("AUTH_TOKEN", authToken)
-            putExtra("TEMPLATE_ID", templateId)
-            putExtra("VERIFICATION_ID", verificationId)
+            putExtra("authToken", authToken)
+            putExtra("templateId", templateId)
+            putExtra("verificationId", verificationId)
         }
         activity?.startActivityForResult(intent, LIVENESS_REQUEST_CODE)
     }

@@ -47,16 +47,23 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
     }
   }
 
-  // --- Native Liveness (FacePlus) Logic ---
   Future<void> _startLivenessCheck() async {
     final provider = context.read<Verification>();
+
+    // Safety check for null token
+    final token = provider.flowState.userToken;
+    if (token == null || token.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Authentication token is missing.')));
+      return;
+    }
+
     setState(() => _livenessStatus = 'Please look at the camera...');
 
     try {
       final String result = await _platform.invokeMethod('startLiveness', {
-        'authToken': provider.flowState.userToken,
-        'templateId': provider.flowState.templateId,
-        'verificationId': provider.flowState.verificationId,
+        'authToken': token,
+        'templateId': provider.flowState.templateId ?? '',
+        'verificationId': provider.flowState.verificationId ?? '',
       });
 
       if (!mounted) return;
@@ -77,11 +84,6 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.read<Verification>();
-
-    print("Tokenn: ${provider.flowState.userToken}");
-
-    // Read the config flag to decide which UI to build.
     final useFacePlus = context.select((Verification p) => p.flowState.useFacePlus);
 
     if (useFacePlus) {

@@ -12,9 +12,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import org.json.JSONObject
 
-/**
- * Networking client to communicate with the custom PHP backend.
- */
 class DefIadWithFaceLivenessCheckClient {
     private val httpClient: OkHttpClient
     private val serverUrl: String
@@ -28,20 +25,17 @@ class DefIadWithFaceLivenessCheckClient {
             .callTimeout(4, TimeUnit.MINUTES)
             .addInterceptor(
                 HttpLoggingInterceptor().apply {
+                    // LEVEL.BODY is good for debugging, but ensure you check logs for "Authorization" header
                     level = HttpLoggingInterceptor.Level.BODY
                 }
             )
             .build()
     }
 
-    /**
-     * Executes the API call to the PHP backend with dynamic data.
-     */
     @Throws(IOException::class)
     fun getRawResponse(
         encryptedBundle: ByteArray,
         jpegImage: ByteArray?,
-        // --- CHANGE 1: Accept dynamic data as parameters ---
         authToken: String,
         templateId: String,
         verificationId: String
@@ -61,13 +55,9 @@ class DefIadWithFaceLivenessCheckClient {
         return responseBody
     }
 
-    /**
-     * Builds the multipart/form-data request using dynamic data.
-     */
-    private fun buildApiRequest(
+private fun buildApiRequest(
         bundleData: ByteArray,
         jpegImageData: ByteArray?,
-        // --- CHANGE 2: Accept dynamic data as parameters ---
         authToken: String,
         templateId: String,
         verificationId: String
@@ -79,37 +69,49 @@ class DefIadWithFaceLivenessCheckClient {
         val requestBodyBuilder = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart("image", "capture.bin", bundleFileBody)
-            // Use the dynamic data passed into the function
             .addFormDataPart("template_id", templateId)
             .addFormDataPart("verification_id", verificationId)
 
         jpegImageData?.let {
-             val imageBase64 = Base64.encodeToString(it, Base64.NO_WRAP)
-   
-            val imageDataUri = "data:image/jpeg;base64,$imageBase64"
+            val imageBase64 = Base64.encodeToString(it, Base64.NO_WRAP)
+            val imageDataUri = "data:image/jpeg;base64,${imageBase64.trim()}"
             requestBodyBuilder.addFormDataPart("image_base64", imageDataUri)
         }
             
         val requestBody = requestBodyBuilder.build()
-            
-        // --- CHANGE 3: Hardcoded values are removed. We use the parameters. ---
+
+        // 1. Clean the input token
+        var cleanToken = authToken.trim()
+        
+        // 2. Add Bearer if missing
+        if (!cleanToken.startsWith("Bearer ", ignoreCase = true)) {
+            cleanToken = "Bearer $cleanToken"
+        }
+
+        // Optional: Log it to be sure (remove before release)
+        android.util.Log.d(TAG, "Sending Authorization: $cleanToken")
 
         return Request.Builder()
             .url(endpointUrl)
-            .header("Authorization", "$authToken")
+            // --- FIX IS HERE: Use 'cleanToken', not 'finalToken' ---
+            .header("Authorization", cleanToken) 
             .header("Accept", "application/json")
             .post(requestBody)
             .build()
     }
-
+    
     @Throws(IOException::class)
     private fun throwResponseError(response: Response) {
         val errorBody = response.body?.string()
-        if (errorBody == null) { throw IOException("Request failed with code ${response.code} and an empty error body.") }
+        if (errorBody == null) { throw IOException("Request failed with code ${response.code} (Empty Body)") }
+        
+        // Log the error body to Logcat so you can see exactly why the server rejected it
+        android.util.Log.e("IadClient", "Server Error: $errorBody")
+        
         try {
             val jsonBody = JSONObject(errorBody)
             val message = jsonBody.optString("message", "An unknown error occurred.")
-            throw IOException("Request failed: $message (Code: ${response.code})")
+            throw IOException("$message (Code: ${response.code})")
         } catch (e: Exception) {
             throw IOException("Request failed with code ${response.code}: $errorBody")
         }
@@ -119,4 +121,3 @@ class DefIadWithFaceLivenessCheckClient {
         private val TAG = DefIadWithFaceLivenessCheckClient::class.simpleName
     }
 }
-
