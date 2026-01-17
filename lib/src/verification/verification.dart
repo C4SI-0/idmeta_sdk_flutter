@@ -65,6 +65,26 @@ class Verification with ChangeNotifier {
   /// A direct accessor to the current state of the verification flow from the repository.
   VerificationFlowState get flowState => _repository.flowState;
 
+  /// Holds the function that the current screen wants to run when "Continue" is pressed.
+  VoidCallback? _onContinuePressed;
+  VoidCallback? get onContinuePressed => _onContinuePressed;
+
+  /// Registers a callback for the main flow button.
+  /// Child screens call this in their initState.
+  void setContinueAction(VoidCallback action) {
+    if (_onContinuePressed != action) {
+      Future.microtask(() {
+        _onContinuePressed = action;
+        notifyListeners();
+      });
+    }
+  }
+
+  void clearContinueAction() {
+    _onContinuePressed = null;
+    notifyListeners();
+  }
+
   /// A private helper method to wrap asynchronous tasks with common state management logic.
   ///
   /// It sets loading states, clears previous errors, and handles exceptions in a
@@ -885,6 +905,7 @@ class Verification with ChangeNotifier {
   /// If the current step is the last one, it triggers the `finalizeVerification` process.
   /// Otherwise, it simply updates the state to show the next step.
   void nextScreen(BuildContext context) {
+    clearContinueAction();
     if (flowState.isLastStep) {
       debugPrint("Last step completed. Finalizing verification...");
       finalizeVerification(context).then((success) {
@@ -907,6 +928,7 @@ class Verification with ChangeNotifier {
 
   /// Navigates the user to the previous screen in the verification flow.
   void previousScreen() {
+    clearContinueAction();
     _repository.previousStep();
     notifyListeners();
   }
