@@ -88,6 +88,7 @@ class FlowScreen extends StatelessWidget {
     final Color inactiveColor = contentTextColor.withOpacity(0.2);
 
     // Button Labels
+
     final String continueText = flowState.isLastStep ? "Complete" : "Continue";
 
     // --- WHITELIST: Only these screens show the sticky footer ---
@@ -98,6 +99,10 @@ class FlowScreen extends StatelessWidget {
       'biometrics_verification',
       'biometrics_registration',
       'philippines_driving_license',
+      'business_aml',
+      'biometrics_face_compare',
+      'dukcapil',
+      'dukcapil_facematch',
     };
 
     final bool showStickyFooter = currentStepKey != null && screensWithStickyFooter.contains(currentStepKey);

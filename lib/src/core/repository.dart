@@ -928,4 +928,12 @@ class VerificationRepository {
       _flowState = _flowState.copyWith(currentStepIndex: lastIndex, history: _flowState.history);
     }
   }
+
+  /// Merges new data into the existing collectedData map.
+  /// This allows saving user inputs locally before sending them to the API.
+  void updateLocalData(Map<String, dynamic> data) {
+    final newData = Map<String, dynamic>.from(_flowState.collectedData);
+    newData.addAll(data);
+    _flowState = _flowState.copyWith(collectedData: newData);
+  }
 }

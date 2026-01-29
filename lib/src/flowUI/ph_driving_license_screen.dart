@@ -25,10 +25,13 @@ class _PhDrivingLicenseScreenState extends State<PhDrivingLicenseScreen> {
       // 1. Register the submit function to the Sticky Footer
       get.setContinueAction(_submitForm);
 
-      // 2. Prefill Data
-      final prefilledData = get.flowState.collectedData;
-      _licenseController.text = prefilledData['docNumber'] ?? '';
-      _expiryController.text = prefilledData['doe'] ?? '';
+      // 2. Restore / Prefill Data
+      final data = get.flowState.collectedData;
+
+      // Logic: Use locally saved data (if user went back) -> otherwise use extracted data -> otherwise empty
+      _licenseController.text = data['ph_dl_number'] ?? data['docNumber'] ?? '';
+      _expiryController.text = data['ph_dl_expiry'] ?? data['doe'] ?? '';
+      _serialController.text = data['ph_dl_serial'] ?? '';
     });
   }
 
@@ -78,6 +81,18 @@ class _PhDrivingLicenseScreenState extends State<PhDrivingLicenseScreen> {
     }
 
     final get = context.read<Verification>();
+
+    // --- SAVE DATA LOCALLY BEFORE SUBMITTING ---
+    get.updateStepData({
+      'ph_dl_number': _licenseController.text,
+      'ph_dl_expiry': _expiryController.text,
+      'ph_dl_serial': _serialController.text,
+      // Update generic keys so they persist if needed elsewhere
+      'docNumber': _licenseController.text,
+      'doe': _expiryController.text,
+    });
+    // -------------------------------------------
+
     final success = await get.submitPhDrivingLicenseData(
       context,
       licenseNumber: _licenseController.text,

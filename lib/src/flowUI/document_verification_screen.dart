@@ -48,10 +48,43 @@ class _DocumentVerificationScreenState extends State<DocumentVerificationScreen>
       // 1. Register the submit function with the parent FlowScreen
       get.setContinueAction(_submit);
 
+      // 2. Try to restore previous state (if user navigated back)
+      final data = get.flowState.collectedData;
+      bool restored = false;
+
+      // Restore Front
+      if (data['local_front_image_path'] != null) {
+        final file = File(data['local_front_image_path']);
+        if (file.existsSync()) {
+          _displayFrontImage = file;
+          _apiFrontImage = file;
+          restored = true;
+        }
+      }
+
+      // Restore Back
+      if (data['local_back_image_path'] != null) {
+        final file = File(data['local_back_image_path']);
+        if (file.existsSync()) {
+          _displayBackImage = file;
+          _apiBackImage = file;
+        }
+      }
+
+      // If data was restored, show preview mode immediately
+      if (restored) {
+        setState(() {
+          _uploadMethod = UploadMethod.device;
+          _isInitializing = false;
+        });
+        return;
+      }
+
+      // 3. Normal Initialization (if no data restored)
       final isManualDefault = get.flowState.isDocumentVerificationManualScan;
 
       if (!isManualDefault) {
-        // If manual scan is NOT allowed, force camera and start scan
+        // If manual scan is NOT allowed/default, force camera and start scan
         setState(() {
           _uploadMethod = UploadMethod.camera;
         });
@@ -71,6 +104,7 @@ class _DocumentVerificationScreenState extends State<DocumentVerificationScreen>
     final get = context.read<Verification>();
     final isMultiSide = get.flowState.isDocumentVerificationMultiSide;
 
+    // Validation
     if (_apiFrontImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Front side image is required.'),
@@ -87,6 +121,13 @@ class _DocumentVerificationScreenState extends State<DocumentVerificationScreen>
       return;
     }
 
+    // Save State Locally (Preserve data if user comes back)
+    get.updateStepData({
+      'local_front_image_path': _apiFrontImage?.path,
+      'local_back_image_path': _apiBackImage?.path,
+    });
+
+    // API Call
     final success = await get.submitDocument(context, front: _apiFrontImage!, back: _apiBackImage);
 
     if (!mounted) return;
@@ -115,11 +156,9 @@ class _DocumentVerificationScreenState extends State<DocumentVerificationScreen>
         _frontRotation = 0;
         _backRotation = 0;
         _isInitializing = false;
-        // Keep camera selected so if they want to rescan they can tap the box
+        // Switch to camera/preview mode to show results
         _uploadMethod = UploadMethod.camera;
       });
-      // NOTE: Auto-submit removed to allow user review.
-      // User must press the Sticky "Continue" button.
     } else if (mounted) {
       setState(() {
         _isInitializing = false;
@@ -641,6 +680,8 @@ class _DocumentVerificationScreenState extends State<DocumentVerificationScreen>
   }
 }
 
+// --- Helper Widgets & Classes ---
+
 class _GuideItem extends StatelessWidget {
   final IconData icon;
   final String text;
@@ -668,6 +709,7 @@ class ScanResult {
 
 class DocumentScannerService {
   static const Map<String, String> _licenses = {
+    // ... licenses preserved ...
     'com.psslai.ko':
         'sRwCAA1jb20ucHNzbGFpLmtvAWxleUpEY21WaGRHVmtUMjRpT2pFM05UTTBOREV3T1RBNE1ERXNJa055WldGMFpXUkdiM0lpT2lKbVlqVTNNakZtT0MxaFlUTXlMVEpsTXpZdE1XTTFZaTB6TUROa016Wm1ZekV3T1dFaWZRPT1zCbYZmIAvF4MF2FxDdaAOM5njNhd2k2EIC6rBiBCMeAvmDA6skqViQ0u7ageG3EGE/8Mimu+tMM4ZsySTjRPf/c6x2RAsIhRLDa6HNCBaSeyHI4eGAXxZJSjki1+w',
     'com.traxionpay.app':

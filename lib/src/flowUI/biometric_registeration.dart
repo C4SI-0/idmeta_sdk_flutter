@@ -22,12 +22,24 @@ class _BiometricRegistrationScreenState extends State<BiometricRegistrationScree
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final get = context.read<Verification>();
 
-      // 1. Register the submit function with the parent Sticky Footer
+      // 1. Register the submit function to the Sticky Footer
       get.setContinueAction(_submit);
 
-      // Prefill data
-      final collectedData = get.flowState.collectedData;
-      _usernameController.text = collectedData['fullName'] ?? collectedData['firstName'] ?? '';
+      // 2. Restore State (Prefill Name & Image if available)
+      final data = get.flowState.collectedData;
+
+      // Restore Name
+      _usernameController.text = data['biometric_name'] ?? data['fullName'] ?? data['firstName'] ?? '';
+
+      // Restore Image
+      if (data['biometric_registration_image_path'] != null) {
+        final file = File(data['biometric_registration_image_path']);
+        if (file.existsSync()) {
+          setState(() {
+            _capturedImage = XFile(file.path);
+          });
+        }
+      }
     });
   }
 
@@ -38,7 +50,10 @@ class _BiometricRegistrationScreenState extends State<BiometricRegistrationScree
   }
 
   Future<void> _submit() async {
-    // Validation: Ensure image is captured
+    // Validation: Form (Name)
+    if (!_formKey.currentState!.validate()) return;
+
+    // Validation: Image
     if (_capturedImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Please capture a photo first.'),
@@ -47,10 +62,16 @@ class _BiometricRegistrationScreenState extends State<BiometricRegistrationScree
       return;
     }
 
-    // Validation: Ensure form is valid
-    if (!_formKey.currentState!.validate()) return;
-
     final get = context.read<Verification>();
+
+    // --- SAVE DATA LOCALLY BEFORE SUBMITTING ---
+    get.updateStepData({
+      'biometric_name': _usernameController.text,
+      'fullName': _usernameController.text, // Update main key for consistency
+      'biometric_registration_image_path': _capturedImage!.path,
+    });
+    // -------------------------------------------
+
     final success = await get.submitBiometricRegistration(
       context,
       username: _usernameController.text,
@@ -66,10 +87,8 @@ class _BiometricRegistrationScreenState extends State<BiometricRegistrationScree
         content: Text(get.errorMessage ?? 'Registration failed.'),
         backgroundColor: Colors.red,
       ));
-
-      setState(() {
-        _capturedImage = null;
-      });
+      // Optional: Clear image on failure?
+      // setState(() => _capturedImage = null);
     }
   }
 
@@ -118,13 +137,12 @@ class _BiometricRegistrationScreenState extends State<BiometricRegistrationScree
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Section 1: Tips
                         const Text("Tips for Best Results:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                         const SizedBox(height: 10),
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF5F7F9), // Light grey background
+                            color: const Color(0xFFF5F7F9),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Column(
@@ -141,10 +159,7 @@ class _BiometricRegistrationScreenState extends State<BiometricRegistrationScree
                             ],
                           ),
                         ),
-
                         const SizedBox(height: 20),
-
-                        // Section 2: Issues
                         const Text("Common Issues to Avoid:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                         const SizedBox(height: 10),
                         Container(
@@ -182,67 +197,85 @@ class _BiometricRegistrationScreenState extends State<BiometricRegistrationScree
     final settings = context.watch<Verification>().designSettings?.settings;
     final textColor = settings?.textColor ?? Colors.black;
 
+    // Use Form + Column. Expanded ensures camera takes remaining space.
     return Form(
       key: _formKey,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
-            child: TextFormField(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextFormField(
               controller: _usernameController,
               decoration: const InputDecoration(labelText: 'Full Name*'),
               validator: (value) => (value?.isEmpty ?? true) ? 'Please enter your name.' : null,
             ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 0),
-              child: _capturedImage == null
-                  ? BiometricCameraView(
-                      onPictureCaptured: (image) {
-                        setState(() => _capturedImage = image);
-                      },
-                    )
-                  : Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text('Registration Photo', style: Theme.of(context).textTheme.titleLarge),
-                        const SizedBox(height: 16),
-                        Expanded(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.file(File(_capturedImage!.path), fit: BoxFit.cover),
-                          ),
-                        ),
-                        TextButton.icon(
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Retake Photo'),
-                          onPressed: () => setState(() => _capturedImage = null),
-                        ),
-                      ],
-                    ),
-            ),
-          ),
+            const SizedBox(height: 16),
 
-          // --- Capture Guide Button ---
-          TextButton.icon(
-            style: TextButton.styleFrom(
-              backgroundColor: Colors.transparent,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-            ),
-            onPressed: _showCaptureGuideDialog,
-            icon: Icon(Icons.help_outline, size: 18, color: textColor),
-            label: Text(
-              "Selfie Capture Guide",
-              style: TextStyle(
-                decoration: TextDecoration.underline,
-                color: textColor,
-                fontWeight: FontWeight.w500,
+            // Camera / Image Area
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.black, // Dark background for camera
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: _capturedImage == null
+                      ? BiometricCameraView(
+                          onPictureCaptured: (image) {
+                            setState(() => _capturedImage = image);
+                          },
+                        )
+                      : Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Image.file(File(_capturedImage!.path), fit: BoxFit.cover),
+                            Positioned(
+                              bottom: 16,
+                              left: 0,
+                              right: 0,
+                              child: Center(
+                                child: TextButton.icon(
+                                  style: TextButton.styleFrom(
+                                    backgroundColor: Colors.black54,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                  ),
+                                  icon: const Icon(Icons.refresh, size: 18),
+                                  label: const Text('Retake Photo'),
+                                  onPressed: () => setState(() => _capturedImage = null),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
               ),
             ),
-          ),
-        ],
+
+            const SizedBox(height: 10),
+
+            // Capture Guide Button
+            TextButton.icon(
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+              ),
+              onPressed: _showCaptureGuideDialog,
+              icon: Icon(Icons.help_outline, size: 18, color: textColor),
+              label: Text(
+                "Selfie Capture Guide",
+                style: TextStyle(
+                  decoration: TextDecoration.underline,
+                  color: textColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -30,17 +31,36 @@ class _DukcapilFaceMatchScreenState extends State<DukcapilFaceMatchScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final get = context.read<Verification>();
-      final prefilledData = get.flowState.collectedData;
 
-      _nameController.text = prefilledData['fullName'] ?? prefilledData['firstName'] ?? '';
-      _nikController.text = prefilledData['docNumber'] ?? '';
-      _dobController.text = prefilledData['dob'] ?? '';
+      // 1. Register the submit function
+      get.setContinueAction(_submitForm);
 
-      final docFaceBase64 = prefilledData['faceImageBase64'] as String?;
-      if (docFaceBase64 != null) {
-        setState(() {
-          _documentFaceBytes = base64Decode(docFaceBase64);
-        });
+      // 2. Restore / Prefill Data
+      final data = get.flowState.collectedData;
+
+      // Logic: Saved Manual Input -> Extracted Data -> Empty
+      _nameController.text = data['dukcapil_fm_name'] ?? data['fullName'] ?? data['firstName'] ?? '';
+      _nikController.text = data['dukcapil_fm_nik'] ?? data['docNumber'] ?? '';
+      _dobController.text = data['dukcapil_fm_dob'] ?? data['dob'] ?? '';
+
+      // Image Restoration Logic
+      // 1. Check for manually saved image path (from user going back)
+      if (data['dukcapil_fm_image_path'] != null) {
+        final f = File(data['dukcapil_fm_image_path']);
+        if (f.existsSync()) {
+          setState(() => _manualSelfieImage = f);
+          return; // Skip document face logic if we have a manual override
+        }
+      }
+
+      // 2. If no manual image, check for document extracted face
+      if (_manualSelfieImage == null) {
+        final docFaceBase64 = data['faceImageBase64'] as String?;
+        if (docFaceBase64 != null) {
+          setState(() {
+            _documentFaceBytes = base64Decode(docFaceBase64);
+          });
+        }
       }
     });
   }
@@ -62,8 +82,7 @@ class _DukcapilFaceMatchScreenState extends State<DukcapilFaceMatchScreen> {
     if (pickedFile != null) {
       setState(() {
         _manualSelfieImage = File(pickedFile.path);
-
-        _documentFaceBytes = null;
+        _documentFaceBytes = null; // Clear doc face if user picks manually
       });
     }
   }
@@ -93,11 +112,14 @@ class _DukcapilFaceMatchScreenState extends State<DukcapilFaceMatchScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     File? imageToSend;
+
+    // Determine which image to send
     if (_manualSelfieImage != null) {
       imageToSend = _manualSelfieImage;
     } else if (_documentFaceBytes != null) {
+      // Convert bytes to file for upload
       final tempDir = await getTemporaryDirectory();
-      imageToSend = await File('${tempDir.path}/temp_face.jpg').writeAsBytes(_documentFaceBytes!);
+      imageToSend = await File('${tempDir.path}/temp_face_${DateTime.now().millisecondsSinceEpoch}.jpg').writeAsBytes(_documentFaceBytes!);
     }
 
     if (imageToSend == null) {
@@ -106,6 +128,16 @@ class _DukcapilFaceMatchScreenState extends State<DukcapilFaceMatchScreen> {
     }
 
     final get = context.read<Verification>();
+
+    // 3. Save Data Locally
+    get.updateStepData({
+      'dukcapil_fm_name': _nameController.text,
+      'dukcapil_fm_nik': _nikController.text,
+      'dukcapil_fm_dob': _dobController.text,
+      // Only save path if it's a manual image that persists on disk
+      'dukcapil_fm_image_path': _manualSelfieImage?.path,
+    });
+
     final success = await get.submitDukcapilFaceMatchData(
       context,
       name: _nameController.text,
@@ -114,10 +146,9 @@ class _DukcapilFaceMatchScreenState extends State<DukcapilFaceMatchScreen> {
       image: imageToSend,
     );
 
+    // Cleanup temp file if created from bytes
     if (_documentFaceBytes != null && await imageToSend.exists()) {
-      await imageToSend.delete().catchError((e) {
-        debugPrint("Error deleting temp file: $e");
-      });
+      await imageToSend.delete().catchError((e) => debugPrint("Error deleting temp file: $e"));
     }
 
     if (!mounted) return;
@@ -130,59 +161,72 @@ class _DukcapilFaceMatchScreenState extends State<DukcapilFaceMatchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isLoading = context.watch<Verification>().isLoading;
     final theme = Theme.of(context);
 
-    return Form(
-      key: _formKey,
-      child: ListView(
-        padding: const EdgeInsets.all(24.0),
-        children: <Widget>[
-          TextFormField(
-            controller: _nameController,
-            decoration: const InputDecoration(labelText: 'Full Name*'),
-            validator: (value) => (value?.trim().isEmpty ?? true) ? 'Please enter a name.' : null,
-          ),
-          const SizedBox(height: 24),
-          TextFormField(
-            controller: _nikController,
-            decoration: const InputDecoration(labelText: 'NIK Number*'),
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            validator: (value) {
-              if (value?.trim().isEmpty ?? true) return 'Please enter a NIK number.';
-              if (value!.length != 16) return 'NIK must be 16 digits.';
-              return null;
-            },
-          ),
-          const SizedBox(height: 24),
-          TextFormField(
-            controller: _dobController,
-            readOnly: true,
-            onTap: _selectDate,
-            decoration: InputDecoration(
-              labelText: 'Date of Birth*',
-              hintText: 'YYYY-MM-DD',
-              suffixIcon: Icon(Icons.calendar_today, color: theme.colorScheme.secondary),
+    // Wrapped in SingleChildScrollView for sticky footer compatibility
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            // Using Card/Container style for consistency
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 4))],
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  children: [
+                    TextFormField(
+                      controller: _nameController,
+                      decoration: const InputDecoration(labelText: 'Full Name*'),
+                      validator: (value) => (value?.trim().isEmpty ?? true) ? 'Please enter a name.' : null,
+                    ),
+                    const SizedBox(height: 24),
+                    TextFormField(
+                      controller: _nikController,
+                      decoration: const InputDecoration(labelText: 'NIK Number*'),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      validator: (value) {
+                        if (value?.trim().isEmpty ?? true) return 'Please enter a NIK number.';
+                        if (value!.length != 16) return 'NIK must be 16 digits.';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                    TextFormField(
+                      controller: _dobController,
+                      readOnly: true,
+                      onTap: _selectDate,
+                      decoration: InputDecoration(
+                        labelText: 'Date of Birth*',
+                        hintText: 'YYYY-MM-DD',
+                        suffixIcon: Icon(Icons.calendar_today, color: theme.colorScheme.secondary),
+                      ),
+                      validator: (value) => (value?.trim().isEmpty ?? true) ? 'Please select a date of birth.' : null,
+                    ),
+                    const SizedBox(height: 24),
+                    _buildImagePicker(),
+                  ],
+                ),
+              ),
             ),
-            validator: (value) => (value?.trim().isEmpty ?? true) ? 'Please select a date of birth.' : null,
-          ),
-          const SizedBox(height: 24),
-          _buildImagePicker(),
-          const SizedBox(height: 48),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-            onPressed: isLoading ? null : _submitForm,
-            child:
-                isLoading ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white)) : const Text('Next'),
-          ),
-        ],
+            const SizedBox(height: 80), // Padding for sticky footer
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildImagePicker() {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         border: Border.all(color: Colors.grey.shade300),

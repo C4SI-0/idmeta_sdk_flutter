@@ -932,4 +932,13 @@ class Verification with ChangeNotifier {
     _repository.previousStep();
     notifyListeners();
   }
+
+  /// Saves data from the current screen to the state.
+  /// Useful for preserving inputs when navigating back and forth.
+  void updateStepData(Map<String, dynamic> data) {
+    _repository.updateLocalData(data);
+    // We don't necessarily need to notifyListeners() here if it causes unnecessary rebuilds,
+    // but it's safer to ensure state consistency.
+    notifyListeners();
+  }
 }

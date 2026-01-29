@@ -31,7 +31,18 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
       // 1. Register the submit function to the Sticky Footer
       verification.setContinueAction(_submit);
 
-      // Auto-start FacePlus if configured
+      // 2. Restore State (If user came back)
+      final data = verification.flowState.collectedData;
+      if (data['biometric_verification_image_path'] != null) {
+        final file = File(data['biometric_verification_image_path']);
+        if (file.existsSync()) {
+          setState(() {
+            _capturedImage = XFile(file.path);
+          });
+        }
+      }
+
+      // 3. Auto-start FacePlus if configured
       if (mounted && verification.flowState.useFacePlus && !_hasLivenessCheckStarted) {
         setState(() {
           _hasLivenessCheckStarted = true;
@@ -58,6 +69,12 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
         ));
         return;
       }
+
+      // --- SAVE DATA LOCALLY BEFORE SUBMITTING ---
+      provider.updateStepData({
+        'biometric_verification_image_path': _capturedImage!.path,
+      });
+      // -------------------------------------------
 
       final success = await provider.submitBiometricVerification(context, image: _capturedImage!);
 
@@ -128,7 +145,6 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -136,10 +152,7 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
                       children: [
                         Icon(Icons.camera_alt_outlined, size: 22, color: Colors.black87),
                         SizedBox(width: 10),
-                        Text(
-                          "Selfie Capture Guide",
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black87),
-                        ),
+                        Text("Selfie Capture Guide", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black87)),
                       ],
                     ),
                     InkWell(
@@ -150,57 +163,24 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
                   ],
                 ),
                 const SizedBox(height: 20),
-
-                // Scrollable Content
                 Flexible(
                   child: SingleChildScrollView(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Section 1: Tips
                         const Text("Tips for Best Results:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                         const SizedBox(height: 10),
                         Container(
                           padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF5F7F9), // Light grey background
-                            borderRadius: BorderRadius.circular(8),
-                          ),
+                          decoration: BoxDecoration(color: const Color(0xFFF5F7F9), borderRadius: BorderRadius.circular(8)),
                           child: const Column(
                             children: [
-                              _GuideItem(icon: Icons.lightbulb_outline, text: "Ensure good, even lighting on your face"),
+                              _GuideItem(icon: Icons.lightbulb_outline, text: "Ensure good, even lighting"),
                               SizedBox(height: 12),
-                              _GuideItem(icon: Icons.face_outlined, text: "Position your face within the oval guide"),
+                              _GuideItem(icon: Icons.face_outlined, text: "Position face within oval guide"),
                               SizedBox(height: 12),
-                              _GuideItem(icon: Icons.front_hand_outlined, text: "Hold the camera steady and at eye level"),
+                              _GuideItem(icon: Icons.front_hand_outlined, text: "Hold camera steady at eye level"),
                               SizedBox(height: 12),
-                              _GuideItem(icon: Icons.camera_alt_outlined, text: "Look directly at the camera"),
-                              SizedBox(height: 12),
-                              _GuideItem(icon: Icons.shield_outlined, text: "Remove glasses, hats, or face coverings"),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        // Section 2: Issues
-                        const Text("Common Issues to Avoid:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                        const SizedBox(height: 10),
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF5F7F9),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Column(
-                            children: [
-                              _GuideItem(icon: Icons.broken_image_outlined, text: "Blurry or out-of-focus images"),
-                              SizedBox(height: 12),
-                              _GuideItem(icon: Icons.brightness_low_outlined, text: "Poor lighting or shadows on face"),
-                              SizedBox(height: 12),
-                              _GuideItem(icon: Icons.vibration, text: "Camera shake or movement"),
-                              SizedBox(height: 12),
-                              _GuideItem(icon: Icons.error_outline, text: "Face partially outside the oval guide"),
+                              _GuideItem(icon: Icons.shield_outlined, text: "Remove glasses/hats"),
                             ],
                           ),
                         ),
@@ -222,7 +202,7 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
     final settings = context.watch<Verification>().designSettings?.settings;
     final textColor = settings?.textColor ?? Colors.black;
 
-    // Standard Column instead of ScrollView to fill available height
+    // Use Padding instead of ScrollView to fill available height with Column
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -234,10 +214,14 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
     );
   }
 
-  // Widget for the standard camera view
+  // Widget for the standard camera view (Preserving Original Design)
   Widget _buildStandardCameraView(Color textColor) {
     return Column(
       children: [
+        const Text("Please position your face in the center of the frame.", textAlign: TextAlign.center),
+        const SizedBox(height: 20),
+
+        // Expanded forces the camera container to take all remaining space
         Expanded(
           child: Container(
             width: double.infinity,
@@ -246,7 +230,6 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.grey.shade300),
             ),
-            // ClipRRect ensures corners are rounded
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: _capturedImage == null
@@ -282,7 +265,8 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
           ),
         ),
 
-        // Guide Button at bottom
+        const SizedBox(height: 10),
+
         TextButton.icon(
           style: TextButton.styleFrom(
             backgroundColor: Colors.transparent,
@@ -300,7 +284,7 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
     );
   }
 
-  // Widget for the native FacePlus liveness view
+  // Widget for the native FacePlus liveness view (Preserving Original Design)
   Widget _buildFacePlusView() {
     final isLoading = context.watch<Verification>().isLoading;
 

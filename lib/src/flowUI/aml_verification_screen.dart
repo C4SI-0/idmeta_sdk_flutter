@@ -31,10 +31,24 @@ class _AmlVerificationScreenState extends State<AmlVerificationScreen> {
       // 1. Register the submit function with the parent FlowScreen
       get.setContinueAction(_submitForm);
 
-      // 2. Prefill Data
-      final prefilledData = get.flowState.collectedData;
-      _nameController.text = prefilledData['fullName'] ?? prefilledData['firstName'] ?? '';
-      _dobController.text = prefilledData['dob'] ?? '';
+      // 2. Restore / Prefill Data
+      final data = get.flowState.collectedData;
+
+      // Check for locally saved data first ('aml_name'), then fallback to extracted data ('fullName')
+      _nameController.text = data['aml_name'] ?? data['fullName'] ?? data['firstName'] ?? '';
+
+      // Check for locally saved DOB, then fallback to extracted DOB
+      _dobController.text = data['aml_dob'] ?? data['dob'] ?? '';
+
+      // Check for locally saved Gender
+      if (data['aml_gender'] != null) {
+        // Ensure the saved value matches one of our options
+        if (genderOptions.any((element) => element.$2 == data['aml_gender'])) {
+          setState(() {
+            _selectedGenderValue = data['aml_gender'];
+          });
+        }
+      }
     });
   }
 
@@ -47,6 +61,7 @@ class _AmlVerificationScreenState extends State<AmlVerificationScreen> {
 
   Future<void> _selectDate(BuildContext context) async {
     final now = DateTime.now();
+    // Parse current text if available, otherwise default to now
     final initialDate = _dobController.text.isNotEmpty ? (DateTime.tryParse(_dobController.text) ?? now) : now;
 
     final DateTime? picked = await showDatePicker(
@@ -78,6 +93,18 @@ class _AmlVerificationScreenState extends State<AmlVerificationScreen> {
     }
 
     final get = context.read<Verification>();
+
+    // --- SAVE DATA LOCALLY BEFORE SUBMITTING ---
+    // This ensures data persists if the user navigates back later
+    get.updateStepData({
+      'aml_name': _nameController.text,
+      'aml_dob': _dobController.text,
+      'aml_gender': _selectedGenderValue,
+      // Also update standard keys so subsequent screens can use the corrected data
+      'fullName': _nameController.text,
+      'dob': _dobController.text,
+    });
+    // -------------------------------------------
 
     final success = await get.submitAmlData(
       context,
@@ -268,7 +295,9 @@ class _AmlVerificationScreenState extends State<AmlVerificationScreen> {
                 ],
               ),
             ),
-          )
+          ),
+          // Bottom spacer to ensure scrolling above sticky footer
+          const SizedBox(height: 80),
         ],
       ),
     );
